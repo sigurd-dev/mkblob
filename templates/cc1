@@ -1,0 +1,3 @@
+#!/bin/sh
+DN="$(dirname "$(readlink -f "${0}")")"
+$DN/cde-exec /usr/libexec/gcc/x86_64-redhat-linux/8/cc1 "$@"
