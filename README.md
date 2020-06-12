@@ -9,7 +9,7 @@ and includes all files it needs.
 
 With mkblob you can make new library independet executables which you can move
 around different Linux distributions without having to worry about dependent 
-shared object files or orther dependent files.
+shared object files or other dependent files.
 
 Example: mkblob /usr/bin/ls -o ls.blob -static
 
