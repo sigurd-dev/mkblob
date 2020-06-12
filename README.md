@@ -18,6 +18,6 @@ Project was originally started to make opencv programs able to run without recom
 
 Example: mkblob /usr/bin/ls -o ls.blob -static
 
-For more information please visit:<a href=http://www.dagestad.info/mkblob>http://www.dagestad.info/mkblob</a> 
+For more information please visit: <a href=http://www.dagestad.info/mkblob>http://www.dagestad.info/mkblob</a> 
 
 License is for now GPLv3.
