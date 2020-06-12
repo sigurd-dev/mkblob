@@ -10,21 +10,13 @@ extern const char blob_tar[];
 
 
 #include <stdlib.h>
-
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
-
 #include <time.h>
-
 #include <limits.h>
-
-//#include <dirent.h>
 #include <errno.h>
-
-//chmod
 #include <sys/stat.h>
-
 #include <dirent.h>
 
 /* alphabet: [a-z0-9] */
