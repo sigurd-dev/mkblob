@@ -1,7 +1,8 @@
 # mkblob
 Make library independent executable files.
 
-Make with makeall_el8.sh on x86_64 version of CentOS 8 or Red Hat Enterprise 8. 
+Make with makeall_el8.sh (chmod 755 makeall_el8.sh) on x86_64 version of CentOS 8 or Red Hat Enterprise 8. 
+
 You might have to tweak the script to make it compile on other distributions.
 Also glibc-static is needed to compile. 
 Precompiled binary is included in directory binary_x86_64.
