@@ -1,5 +1,5 @@
 # mkblob
-Make library independent executable files.
+Tool to make executables independent from libraries.
 
 Make with makeall_el8.sh on x86_64 version of CentOS 8 or Red Hat Enterprise 8. 
 
