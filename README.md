@@ -19,6 +19,8 @@ Project was originally started to make opencv programs able to run without recom
 
 Example: mkblob /usr/bin/ls -o ls.blob -static
 
+mkblob can be used on not only binaries, but scripts as well, like shell, perl and python and so on.
+
 For more information please visit: <a href=http://www.dagestad.info/mkblob>http://www.dagestad.info/mkblob</a> 
 
 License is for now GPLv3.
