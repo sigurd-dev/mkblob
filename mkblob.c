@@ -1,8 +1,47 @@
 /*
-mkblob.c
+Program to start new program with ASLR disabled. (Address Space Layout Randomization)
+This is needed to run programs made with statifier. 
+And yes, it less secure to run programs without ASLR turned on, I agree.
+
 (C) Sigurd Dagestad, Feb. 2020
-sigurd@dagestad.info
+sigurd@dagestad.info 
+
+Change Dynamic linker: -Wl,--dynamic-linker=/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
+se: https://stackoverflow.com/questions/14709202/change-ld-linux-location
+
+-rpath compiler option:
+se: https://stackoverflow.com/questions/8835108/how-to-specify-non-default-shared-library-path-in-gcc-linux-getting-error-whil
+
+Filen strace-4.6/Makefile er endret med -static:
+CFLAGS = -g -O2 -fno-stack-protector -U_FORTIFY_SOURCE -D_GNU_SOURCE -static# pgbovine - try to be compatible with older
+deretter i CDE dir kjør make for å få static cde og cde-exec
+
+Compile: gcc runexec.c blob.S -o runexec 
+
+Static Linking:  yum install glibc-static (Husk begrensninger med lisens, se: https://lwn.net/Articles/117972/)
+Compile: gcc --static runexec.c -o runexec
+
+Lage onject fil som kan "shippes" med programmet for å holde det lovlig.
+gcc -c noaslrexec.c // her lages noaslrexec.o
+kompilere så denne:
+gcc -static  noaslrexec.o blob.S -o  noaslrexec
+Shipper man med o filen er man "good to go" hva gjelde glibc statisk linking   
+se i o fil: nm -u noaslrexec.o
+
 */
+
+//tar: tar -zcvf blob.tar.gz directory-name
+
+//kjøre test: ./noaslrexec  /tmp/test.bin  ../test/dottest.jpg -c test.oct
+
+//gcc mkblob.c  blobgz.S -o mkblob
+
+
+//https://developers.redhat.com/blog/2019/07/05/how-to-store-large-amounts-of-data-in-a-program/
+
+//http://dcjtech.info/topic/embedding-files-in-c-source-code/
+//gcc -Wall -Wextra -pedantic -O3 -fwhole-program -funroll-loops noaslrexec.c blob.S -o  noaslrexec
+//gcc  noaslrexec.c blob.S -o  noaslrexec
 
 //Size and content of tar blob
 extern const unsigned int size_tar;
@@ -10,13 +49,21 @@ extern const char blob_tar[];
 
 
 #include <stdlib.h>
+
 #include <string.h>
 #include <unistd.h>
 #include <stdio.h>
+
 #include <time.h>
+
 #include <limits.h>
+
+//#include <dirent.h>
 #include <errno.h>
+
+//chmod
 #include <sys/stat.h>
+
 #include <dirent.h>
 
 /* alphabet: [a-z0-9] */
@@ -47,8 +94,11 @@ static void list_dir (const char * dir_name)
 {
     DIR * d;
     char cpyfile[256];
- 
+    //chdir(dir_name);
+    //printf("dir_name: %s\n", dir_name);
+
     /* Open the directory specified by "dir_name". */
+
     d = opendir (dir_name);
     //printf("opendir: %s\n", opendir);    
 
@@ -82,13 +132,26 @@ static void list_dir (const char * dir_name)
            strcat(cpyfile, d_name);
            strcat(cpyfile, "\" \"\" ./cde-package/cde-root/");
            system(cpyfile);
-       } 
- 
+	   //printf ("%s/%s\n", dir_name, d_name);
+        } 
+        //else
+          // printf (". or .. are is not to be copied\n"); 
+#if 0     
+	/* If you don't want to print the directories, use the
+	   following line: */
+
+        if (! (entry->d_type & DT_DIR)) {
+	    printf ("%s/%s\n", dir_name, d_name);
+	}
+
+#endif /* 0 */
+
 
         if (entry->d_type & DT_DIR) {
 
             /* Check that the directory is not "d" or d's parent. */
-             if (strcmp (d_name, "..") != 0 &&
+            
+            if (strcmp (d_name, "..") != 0 &&
                 strcmp (d_name, ".") != 0) {
                 int path_length;
                 char path[PATH_MAX];
@@ -114,7 +177,8 @@ static void list_dir (const char * dir_name)
 }
 
 
-char startdir[PATH_MAX];
+//Check if exe.
+//https://cboard.cprogramming.com/c-programming/64328-how-determine-if-file-executable-not.html
 
 int main(int argc, char *argv[])
 {
@@ -122,17 +186,19 @@ int main(int argc, char *argv[])
    if (argc < 3)
    {
       fprintf(stderr, "Usage: %s <full path to executable file> -o <output blob> [-f file] [-d dir] [-static] [-dae]\n\n", argv[0]);
-      fprintf(stderr, "where full path to executable file, executable file you want to make library independent.\n");
-      fprintf(stderr, "      -o output file or blob as in binary large object, or as The Blob on the silverscreen.\n");
+      fprintf(stderr, "where <full path to executable file> is the executable file you want to make library independent.\n");
+      fprintf(stderr, "      -o output file.\n");
       fprintf(stderr, "      -f file to include, use multiple if nessesary.\n");
       fprintf(stderr, "      -d dir to include, use multiple if nessesary.\n");
       fprintf(stderr, "      -static, make a static executable for use on compatible arch.\n");
       fprintf(stderr, "      -dae, delete at end, delete files from /tmp/.<randomdir> when finish, to be used if program needs to load files at runtime.\n\n");
       fprintf(stderr, "Example: mkblob /usr/bin/ls -o ls.blob -static\n\n");
       fprintf(stderr, "Project was originally started to make opencv programs able to run without recompiling/rebuilding/installing.\n\n");
-      fprintf(stderr, "2020 © Sigurd Dagestad (sigurd@dagestad.info). Version 1.03\n\n");
+      fprintf(stderr, "2020 © Sigurd Dagestad (sigurd@dagestad.info)\n\n");
       return 1;
    } 
+
+
 
    //default output filename
    char outfile[256] = "a.out";
@@ -141,8 +207,9 @@ int main(int argc, char *argv[])
    char gccpthread[20] = " -lpthread";
 
    char cwd[PATH_MAX];
-   readlink("/proc/self/cwd", cwd, sizeof(cwd));
-   readlink("/proc/self/cwd", startdir, sizeof(startdir));
+   getcwd(cwd, sizeof(cwd));//current dir
+   char startdir[PATH_MAX];
+   getcwd(startdir, sizeof(startdir));
    strcat(startdir,"/");
 
    //Make random directory
@@ -151,6 +218,9 @@ int main(int argc, char *argv[])
    strcpy(p, ".");
    strcat(p, randomString(10));
 
+   //printf("size_tar %i\n", size_tar);
+   //int n;
+ 
    //Write tar blob to /tmp 
    FILE *pFile;
    char blobtar[256];
@@ -158,7 +228,7 @@ int main(int argc, char *argv[])
    strcat(blobtar,p);
    strcat(blobtar,".tar.gz");
    pFile = fopen(blobtar,"wb");  // w for wr
-   //Write file, this seems to work
+   //Write file, this seems to worl
    fwrite(blob_tar,size_tar,1,pFile);
    fclose(pFile);
   
@@ -184,7 +254,7 @@ int main(int argc, char *argv[])
    strcpy(export, "export PATH=/tmp/");
    strcat(export, p);
    strcat(export, ":");
-   char command[8192];
+   char command[8192];//export;// "export PATH=/tmp/blob2cmpoint-package:"; 
    strcpy(command, export);
    
    const char *envpath = "PATH";
@@ -198,18 +268,22 @@ int main(int argc, char *argv[])
    system("mkdir -p cde-package/cde-root/");
    system("chmod -R 755 cde-package/");
    char cpydir[256];
+   //strcpy(cpydir, "cp --parents -R ");
    char cpyfile[256];
+   //strcpy(cpyfile, "cp --parents ");
    
    //delete at and/exit
    int dae = 0;
 
    char *input;
    int firstbinary=0; //Check to make first binary the executable in the blob.
-   int i;  
+   int i;
+   //printf("argc: %d ", argc );  
    for(i = 1; i < argc; i++) 
    {   
        if(strcmp(argv[i],"-o") == 0)
-       { 
+       {
+         //printf("\n\nPIss ass%s\n\n", argv[i]); 
          if(i+1 < argc)
            strcpy(outfile, argv[i+1]);
            i++;
@@ -222,7 +296,11 @@ int main(int argc, char *argv[])
        }
        else if(strcmp(argv[i],"-d") == 0)
        {
-
+         //strcpy(cpydir, "cp --parents -R ");
+         //strcat(cpydir, argv[i+1]);
+         //strcat(cpydir, " ./cde-package/cde-root/");
+         //printf("okapidir: %s\n", argv[i+1]); 
+         //system(cpydir);
          list_dir(argv[i+1]); 
          i++;
          continue;  
@@ -241,10 +319,19 @@ int main(int argc, char *argv[])
          strcpy(gccstatic, " -static ");
          continue;  
        }
+       /*else if(strcmp(argv[i],"-lpthread") == 0)
+       {
+         strcpy(gccpthread, " -lpthread ");
+         continue;  
+       }*/
        else 
        { 
            //A hack to check if file is executable as file not permission.
 	   char fileisexec[256];
+           //sprintf(fileisexec,"file %s | grep -i executable", argv[i]); //funker ikke i Ubuntu 18
+           
+           //file -L follows symlinks.  
+	   //sprintf(fileisexec,"/tmp/%s/file.cde -L %s | grep -i -e 'shared object' -e executable", p, argv[i]);
            sprintf(fileisexec,"file -L %s | grep -i -e 'shared object' -e executable", argv[i]);
 	   FILE *pipe = popen(fileisexec,"r");
 	   char buffer[2048] = "";
@@ -253,20 +340,45 @@ int main(int argc, char *argv[])
 	   if(strlen(buffer) > 5) 
 	   {
 	      if(firstbinary == 0){ input = argv[i]; firstbinary = 1;}
-
-              strcat(command, argv[i]);
+              //strcat(command, ";cde ");
+              
+	      strcat(command, argv[i]);
               strcat(command, " ");             
 	   } 
 	   else 
 	   {   
-	      printf("%s does not seem to be an executable file.\nPlease check your arguments.\n", argv[i]);
+	      printf("%s does not seem to be an executable file.\nPlease check your argument.\n", argv[i]);
+              //printf("%s is maybe not an executable file.\nContinuing anyway...\n", argv[i]);
 	      exit(0);  
 	   }
-       }        
+       }
+       //strcat(command, ";cde "); 
+       //strcat(command, argv[i]);
+       //printf("argv[%d]: %s ", i, argv[i]);
+        
    }
    strcat(command, " ");
+  // printf("command %s", command);
+   //return 0;
 
    printf("Making portable executable blob, wait up...\n");
+
+/*   for(i = 1; i < argc; ++i) 
+   {   
+       if(argv[i] == "-o") 
+       {   printf("-o\n");
+         break;}         
+        
+       strcat(command, argv[i]);
+       
+       if(i == argc-1)
+         strcat(command, " ");
+       if(i == argc-2)
+         strcat(command, " ");
+  
+       else
+         strcat(command, ";cde "); 
+   }*/
   
    char cwdcmd[256];
    strcpy(cwdcmd, "cd ");
@@ -282,10 +394,24 @@ int main(int argc, char *argv[])
    fprintf (execfp, "\n");
    fprintf (execfp, "DN=\"$(dirname \"$(readlink -f \"${0}\")\")\"");
    fprintf (execfp, "\n");
+   //fprintf (execfp, cwdcmd);
+   //fprintf (execfp, "\n");
+
+   //Code to extract filename from path
+   //fn holds filname when done.
+   /*char *fn;
+   //char *input;
+   //input = argv[1];
+   if (input[(strlen(input) - 1)] == '/')
+       input[(strlen(input) - 1)] = '\0';
+   (fn = strrchr(input, '/')) ? ++fn : (fn = input);*/
+
+   //fprintf (execfp, "$DN/cde-exec %s \"$@\"", fn);
    fprintf (execfp, "$DN/cde-exec %s \"$@\"", input);
    fprintf (execfp, "\n");
    fclose (execfp);
    
+  
    //Write blob assembler file
    char blob[256];
    strcpy(blob,"    .incbin \"");
@@ -296,6 +422,7 @@ int main(int argc, char *argv[])
    strcpy(blobgzS, "/tmp/");
    strcat(blobgzS, p);
    strcat(blobgzS, "/blobgz.S");
+   //FILE * execfp;
    execfp = fopen (blobgzS, "w");
    fprintf (execfp, "    .global blob_tar");
    fprintf (execfp, "\n");
@@ -315,12 +442,17 @@ int main(int argc, char *argv[])
    fprintf (execfp, "\n");
    fclose (execfp);
 
+
+   //rename(execfile, mvexecfile);
+
    char chmod[256];
    strcat(chmod, "chmod -R 755 /tmp/");
    strcat(chmod, p);  
    
+   //sprintf(chmod,"/tmp/%s/chmod.cde -R 755 /tmp/", p); 
    system(chmod);
 
+   //printf("command: %s\n", command);
    char exedir[256];
    strcpy(exedir, "/tmp/");
    strcat(exedir, p);    
@@ -333,7 +465,18 @@ int main(int argc, char *argv[])
    strcat(mvexecfile, " /tmp/");
    strcat(mvexecfile, p);
    strcat(mvexecfile, "/cde-package/execute.cde"); 
+   //printf("mv: %s", mvexecfile);
    system(mvexecfile);  
+
+   //Move exepid to new dir
+   /*char mvexepid[256];
+   strcpy(mvexepid, "mv ");
+   strcat(mvexepid, "exepid");
+   strcat(mvexepid, " /tmp/");
+   strcat(mvexepid, p);
+   strcat(mvexepid, "/cde-package/exepid"); 
+   //printf("mv: %s", mvexecfile);
+   system(mvexepid);*/
 
    //rm cde.log
    char rmfile[256];
@@ -349,8 +492,9 @@ int main(int argc, char *argv[])
 
    char gnudir[1024];
    sprintf(gnudir,"/tmp/%s/cde-package/cde-root/usr/lib/x86_64-linux-gnu",p );
- 
-  //Debian based linuxes now have a new place to store libs...
+   //printf("gnudir: %s\n", gnudir);
+   //Debian based linuxes now have a new place to store libs...
+   //if (access("./cde-root/usr/lib/x86_64-linux-gnu", F_OK) != 0)  
    if (!access(gnudir, F_OK) == 0)  
    {
        chdir("cde-package/cde-root/usr/lib/");
@@ -360,7 +504,7 @@ int main(int argc, char *argv[])
        //system("pwd");
    }
    //And the other way around (we are on Debian based system)
-   else    
+   else //if (access("./cde-root/usr/lib/x86_64-linux-gnu", F_OK) == 0)    
    {
        chdir("cde-package/cde-root/usr/");
        system("pwd");
@@ -368,7 +512,9 @@ int main(int argc, char *argv[])
        system("mv lib64 lib64.orig");     
        system("ln -s ./lib/x86_64-linux-gnu ./lib64");
        chdir("../../.."); 
+       //system("pwd");
    }
+
 
    //make blob.tar.gz
    char targz[256];
@@ -378,21 +524,47 @@ int main(int argc, char *argv[])
    system(targz);
 
    strcpy(targz, "tar -zcf "); //-zcvf
+   //strcat(targz, p);
    strcat(targz, "blob.tar.gz ");
+   //strcat(targz, "/tmp/");
+   //strcat(targz, p);
    strcat(targz, "cde-package/");
    system(targz);       
 
+   //cd to folder where we are executing mkblob
+   //system(cwdcmd);
+
+   //compile standalone executable
+   //Dette blir feil, det må kompileres fra dir vi står i.
+  /* char compile[256];
+   strcpy(compile, "gcc mkblobexec.o blobgz.S -static -o ");
+   strcat(compile, startdir);
+   strcat(compile, outfile);
+   system(compile); */
+  
+  /* char chdr[256];
+   strcpy(chdr, "cd ");
+   strcat(chdr, startdir);
+   system(chdr);
+   //printf("curdir: %s", getcwd(cwd, sizeof(cwd)));*/
    chdir(startdir);
+   //printf("curdir: %s", getcwd(cwd, sizeof(cwd)));
 
    char compile[512];
-   strcpy(compile, " /tmp/");
-   strcat(compile, p);
-   strcat(compile, "/gcc.cde ");
+ //  if (access("/usr/bin/gcc", F_OK) == 0) //gcc is installed
+ //     strcpy(compile, "gcc ");
+ //  else                                   //use my own gcc.cde (this should be the default in the end.)
+ //  {
+     strcpy(compile, " /tmp/");
+     strcat(compile, p);
+     strcat(compile, "/gcc.cde ");
+ //  }
 
    strcat(compile, " -L/tmp/");
    strcat(compile, p);
    strcat(compile, " -I/tmp/");
    strcat(compile, p);
+   //strcat(compile, "/cde-package/cde-root/usr/include"); 
    strcat(compile, " /tmp/");
    strcat(compile, p);
 
@@ -414,6 +586,8 @@ int main(int argc, char *argv[])
 
    strcat(compile, outfile);
    strcat(compile, gccpthread); //must come at the end
+   
+   //printf("\ngcc: %s\n", compile); 
    system(compile);
    
    //Move blob to mkblob dir 
@@ -432,7 +606,7 @@ int main(int argc, char *argv[])
    strcat(rmdir, p);    
    system(rmdir); 
  
-   printf("\nDone!\n");
+   printf("Done!\n");
   
    return 0;
       
