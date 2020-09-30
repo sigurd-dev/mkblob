@@ -1,0 +1,12 @@
+mkblob
+1.04
+0
+Sigurd Dagestad (sigurd@dagestad.info)
+sigurd@dagestad.info
+Make library independent binary executable.
+GPL
+System
+x86_64
+Make library independent binary executable. Project was originally started to make opencv programs able to run without rebuilding depending libraries.
+NOSTRIP
+/usr/bin/mkblob
