@@ -51,8 +51,3 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
-# Linux Installers and binary file
-*.rpm
-*.deb
-mkblob
-
