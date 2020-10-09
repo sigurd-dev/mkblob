@@ -10,7 +10,7 @@ Precompiled binary is included in directory binary_X86_64 as well as rpm and deb
 mkblob should run on any X86_64 as it is statically compiled
 and includes all files it needs.
 
-With mkblob you can make new library independent executables which you can move
+With mkblob you can make new library independent executable which you can move
 around different Linux distributions. It will gather all the dependecies 
 it needs to run and other files your program uses.
 
