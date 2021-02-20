@@ -1,10 +1,17 @@
 /*
-Program to start new program with ASLR disabled. (Address Space Layout Randomization)
-This is needed to run programs made with statifier. 
-And yes, it less secure to run programs without ASLR turned on, I agree.
+Tool to make executables independent from libraries.
 
-(C) Sigurd Dagestad, Feb. 2020
+(C) Sigurd Dagestad, Feb. 2020, Feb. 2021
 sigurd@dagestad.info 
+
+Change log:
+
+Feb 2020: First release. Sd
+Feb 2021: Fixed okapi path that was wrong. Sd 
+
+
+
+//--------Notes to myself--------------
 
 Change Dynamic linker: -Wl,--dynamic-linker=/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2
 se: https://stackoverflow.com/questions/14709202/change-ld-linux-location
@@ -21,11 +28,11 @@ Compile: gcc runexec.c blob.S -o runexec
 Static Linking:  yum install glibc-static (Husk begrensninger med lisens, se: https://lwn.net/Articles/117972/)
 Compile: gcc --static runexec.c -o runexec
 
-Lage onject fil som kan "shippes" med programmet for å holde det lovlig.
+Lage object fil som kan "shippes" med programmet for å holde det lovlig.
 gcc -c noaslrexec.c // her lages noaslrexec.o
 kompilere så denne:
 gcc -static  noaslrexec.o blob.S -o  noaslrexec
-Shipper man med o filen er man "good to go" hva gjelde glibc statisk linking   
+Shipper man med o filen er man "good to go" hva gjelde glibc statisk linking.   
 se i o fil: nm -u noaslrexec.o
 
 */
@@ -42,6 +49,8 @@ se i o fil: nm -u noaslrexec.o
 //http://dcjtech.info/topic/embedding-files-in-c-source-code/
 //gcc -Wall -Wextra -pedantic -O3 -fwhole-program -funroll-loops noaslrexec.c blob.S -o  noaslrexec
 //gcc  noaslrexec.c blob.S -o  noaslrexec
+
+//-----------Notes end----------------
 
 //Size and content of tar blob
 extern const unsigned int size_tar;
@@ -65,6 +74,9 @@ extern const char blob_tar[];
 #include <sys/stat.h>
 
 #include <dirent.h>
+
+/*Ugly global variable solving my problems.*/
+char p[11];
 
 /* alphabet: [a-z0-9] */
 const char alphabet[] = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -126,7 +138,10 @@ static void list_dir (const char * dir_name)
              
         {
            //okapi filecopy
-           strcpy(cpyfile, "okapi \"");  
+           strcpy(cpyfile, "/tmp/");  
+           strcat(cpyfile, p);
+           strcat(cpyfile, "/");
+           strcat(cpyfile, "okapi \"");  
            strcat(cpyfile, dir_name);
            strcat(cpyfile, "/");
            strcat(cpyfile, d_name);
@@ -191,10 +206,10 @@ int main(int argc, char *argv[])
       fprintf(stderr, "      -f file to include, use multiple if nessesary.\n");
       fprintf(stderr, "      -d dir to include, use multiple if nessesary.\n");
       fprintf(stderr, "      -static, make a static executable for use on compatible arch.\n");
-      fprintf(stderr, "      -dae, delete at end, delete files from /tmp/.<randomdir> when finish, to be used if program needs to load files at runtime.\n\n");
+      fprintf(stderr, "      -dae, delete at end, delete files from /tmp/.<randomdir> when finished, to be used if program needs to load files at runtime.\n\n");
       fprintf(stderr, "Example: mkblob /usr/bin/ls -o ls.blob -static\n\n");
       fprintf(stderr, "Project was originally started to make opencv programs able to run without recompiling/rebuilding/installing.\n\n");
-      fprintf(stderr, "2020 © Sigurd Dagestad (sigurd@dagestad.info)\n\n");
+      fprintf(stderr, "2020-2012 © Sigurd Dagestad (sigurd@dagestad.info)\n\n");
       return 1;
    } 
 
@@ -212,9 +227,14 @@ int main(int argc, char *argv[])
    getcwd(startdir, sizeof(startdir));
    strcat(startdir,"/");
 
+   char todir[PATH_MAX];
+   getcwd(todir, sizeof(todir));
+   strcat(todir,"/");
+   //printf("todir: %s\n", todir);
+
    //Make random directory
    srand(time(NULL));
-   char p[11];
+   //char p[11];
    strcpy(p, ".");
    strcat(p, randomString(10));
 
@@ -228,7 +248,7 @@ int main(int argc, char *argv[])
    strcat(blobtar,p);
    strcat(blobtar,".tar.gz");
    pFile = fopen(blobtar,"wb");  // w for wr
-   //Write file, this seems to worl
+   //Write file, this seems to work
    fwrite(blob_tar,size_tar,1,pFile);
    fclose(pFile);
   
@@ -307,7 +327,10 @@ int main(int argc, char *argv[])
        }
        else if(strcmp(argv[i],"-f") == 0)
        {
-         strcpy(cpyfile, "okapi  \"");  
+         strcpy(cpyfile, "/tmp/");  
+         strcat(cpyfile, p);
+         strcat(cpyfile, "/");
+         strcat(cpyfile, "okapi  \"");  
          strcat(cpyfile, argv[i+1]);
          strcat(cpyfile, "\" \"\" ./cde-package/cde-root/");
          system(cpyfile);
@@ -548,6 +571,7 @@ int main(int argc, char *argv[])
    system(chdr);
    //printf("curdir: %s", getcwd(cwd, sizeof(cwd)));*/
    chdir(startdir);
+   chdir(todir);
    //printf("curdir: %s", getcwd(cwd, sizeof(cwd)));
 
    char compile[512];
@@ -568,7 +592,7 @@ int main(int argc, char *argv[])
    strcat(compile, " /tmp/");
    strcat(compile, p);
 
-   //Check if we want to compile for delete at exit
+   //Check if we want to compile for "delete at exit"
    if( dae == 0)
      strcat(compile, "/mkblobexec.o ");
    else 
@@ -599,6 +623,7 @@ int main(int argc, char *argv[])
    strcat(moveblob, " ");
    strcat(moveblob, startdir);
    strcat(moveblob, outfile);
+   //printf("command: %s", moveblob);
    system(moveblob);
 
    char rmdir[256];
