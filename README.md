@@ -4,7 +4,7 @@ Tool to make executables independent from libraries.
 Make with makeall_el8.sh on x86_64 version of CentOS 8 or Red Hat Enterprise 8. 
 
 You might have to tweak the script to make it compile on other distributions.
-Also glibc-static is needed to compile. 
+Also glibc-static is needed to compile. (dnf install glibc-static)
 Precompiled binary is included in directory binary_X86_64 as well as rpm and deb files.
 
 mkblob should run on any X86_64 as it is statically compiled
