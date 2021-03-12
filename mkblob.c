@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
       fprintf(stderr, "      -dae, delete at end, delete files from /tmp/.<randomdir> when finished, to be used if program needs to load files at runtime.\n\n");
       fprintf(stderr, "Example: mkblob /usr/bin/ls -o ls.blob -static\n\n");
       fprintf(stderr, "Project was originally started to make opencv programs able to run without recompiling/rebuilding/installing.\n\n");
-      fprintf(stderr, "2020-2012 © Sigurd Dagestad (sigurd@dagestad.info)\n\n");
+      fprintf(stderr, "2020-2021 © Sigurd Dagestad (sigurd@dagestad.info)\n\n");
       return 1;
    } 
 
