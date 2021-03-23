@@ -22,6 +22,8 @@ mkblob can be used on not only binaries, but scripts as well, like shell, perl a
 If you need or want to pass arguments to your (binary) program you should create a script which does this and then run 
 this script with mkblob.
 
+There is also a Raspberry Pi version at: <a href=https://github.com/sigurd-dev/mkblob-rpi>https://github.com/sigurd-dev/mkblob-rpi</a>
+
 For more information please visit: <a href=http://www.dagestad.info/mkblob>http://www.dagestad.info/mkblob</a> 
 
 License is for now GPLv3.
