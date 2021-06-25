@@ -5,9 +5,9 @@ Make with makeall_el8.sh on x86_64 version of CentOS 8 or Red Hat Enterprise 8.
 
 You might have to tweak the script to make it compile on other distributions.
 Also glibc-static is needed to compile. (dnf install glibc-static)
-Precompiled binary is included in directory binary_X86_64 as well as rpm and deb files.
+Precompiled binary is included in directory binary_x86_64 as well as rpm and deb files.
 
-mkblob should run on any X86_64 as it is statically compiled
+mkblob should run on any x86_64 as it is statically compiled
 and includes all files it needs.
 
 With mkblob you can make new library independent executable which you can move
@@ -16,7 +16,7 @@ it needs to run and other files your program uses.
 
 Project was originally started to make opencv programs able to run without recompiling/rebuilding/installing.
 
-Example: mkblob /usr/bin/ls -o ls.blob -static
+Example: mkblob /bin/ls -o ls.blob -static
 
 mkblob can be used on not only binaries, but scripts as well, like shell, perl and python and so on.
 If you need or want to pass arguments to your (binary) program you should create a script which does this and then run 
