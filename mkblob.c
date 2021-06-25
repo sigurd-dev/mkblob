@@ -8,7 +8,7 @@ Change log:
 
 Feb 2020: First release. Sd
 Feb 2021: Fixed okapi path that was wrong. Sd 
-
+Jun 2021: Fixed PATH variable bug. Sd
 
 
 //--------Notes to myself--------------
@@ -271,7 +271,7 @@ int main(int argc, char *argv[])
 
    //Max argument string to 8192 bytes. Enough?
    char export[256];
-   strcpy(export, "export PATH=/tmp/");
+   strcpy(export, "export PATH=\"/tmp/");
    strcat(export, p);
    strcat(export, ":");
    char command[8192];//export;// "export PATH=/tmp/blob2cmpoint-package:"; 
@@ -281,7 +281,7 @@ int main(int argc, char *argv[])
    char * pTmp = getenv( envpath );
    
    strcat(command, pTmp);
-   strcat(command,";cde ");
+   strcat(command,"\";cde ");
  
    //Make path for cp command
    chdir(p);

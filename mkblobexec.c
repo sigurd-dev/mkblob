@@ -2,6 +2,11 @@
 mkblobexec.c
 (C) Sigurd Dagestad, Feb. 2020
 sigurd@dagestad.info 
+
+Change log:
+Jun 2021: Fixed PATH variable bug. Sd
+
+
 */
 
 //Size and content of tar blob
@@ -98,6 +103,7 @@ int usr1done = 0;
 char rmhome[256];
 char exebin[256];
 
+//Not in use.
 void sig_handler(int signo)
 {
   if (signo == SIGUSR1 && usr1done == 0)
@@ -185,7 +191,7 @@ int main(int argc, char *argv[])
 
    //Max argument string to 8192 bytes. Enough?
    char export[256];
-   strcpy(export, "export PATH=/tmp/");
+   strcpy(export, "export PATH=\"/tmp/");
    strcat(export, p);
    strcat(export, ":");
    char command[8192];
@@ -195,7 +201,7 @@ int main(int argc, char *argv[])
    char * pTmp = getenv( envpath );
    
    strcat(command, pTmp);
-   strcat(command,"; execute.cde ");
+   strcat(command,"\"; execute.cde ");
  
    int i;
    for(i = 1; i < argc; ++i) 
