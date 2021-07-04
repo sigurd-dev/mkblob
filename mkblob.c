@@ -370,9 +370,15 @@ int main(int argc, char *argv[])
 	   } 
 	   else 
 	   {   
-	      printf("%s does not seem to be an executable file.\nPlease check your argument.\n", argv[i]);
+	      printf("%s does not seem to be an executable file.\nI might be wrong, so I'll try anyway...\n", argv[i]);
+              if(firstbinary == 0){ input = argv[i]; firstbinary = 1;}
+              //strcat(command, ";cde ");
+              
+	      strcat(command, argv[i]);
+              strcat(command, " ");             
+
               //printf("%s is maybe not an executable file.\nContinuing anyway...\n", argv[i]);
-	      exit(0);  
+	      //exit(0);  
 	   }
        }
        //strcat(command, ";cde "); 
