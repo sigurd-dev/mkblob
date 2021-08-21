@@ -40,6 +40,8 @@ int intN(int n) { return rand() % n; }
 /**
  * Input: length of the random string [a-z0-9] to be generated
  */
+//Not in use anymore 20210821, parallel execution gives 
+//same random number. Keeping code for now.
 char *randomString(int len) 
 {
   char *rstr = malloc((len + 1) * sizeof(char));
@@ -156,10 +158,15 @@ int main(int argc, char *argv[])
    getcwd(startdir, sizeof(startdir));
    strcat(startdir,"/");
 
-   srand(time(NULL));
+   //pid_t pid = getpid();
+   //srand(time(NULL));
+   
+   //char p[11];
+   //strcpy(p, ".");
    char p[11];
-   strcpy(p, ".");
-   strcat(p, randomString(10));
+   sprintf(p + strlen(p), ".%ld", (long) getpid()); 
+  
+   //strcat(p, randomString(10));
 
    //Write tar blob to /tmp 
    FILE *pFile;
@@ -239,7 +246,7 @@ int main(int argc, char *argv[])
    strcpy(rmdir, "rm -rf /tmp/");
    strcat(rmdir, p);
    system(rmdir); 
-
+    
    return 0;
       
 }
