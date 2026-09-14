@@ -1,0 +1,327 @@
+MKBLOB - LESMEG
+===============
+
+(Dette er den norske originalen. readme.txt er en engelsk oversettelse
+av denne fila, og er den som følger med i .rpm/.deb-pakkene.)
+
+Hva er dette?
+-------------
+mkblob er et verktøy som pakker en kjørbar fil sammen med alle delte
+biblioteker og andre filer den trenger for å kjøre, slik at resultatet
+blir én selvstendig fil som kan kjøres på andre Linux-distribusjoner uten
+ombygging/installasjon. Det bruker CDE (Code, Data and Environment) til å
+spore hvilke filer et program faktisk rører, og pakker de filene inn i
+den ferdige "bloben".
+
+Prosjektet ble opprinnelig laget for å kunne kjøre OpenCV-programmer uten
+å måtte rebygge/installere dem på hver eneste maskin.
+
+Eksempel: mkblob /bin/ls -o ls.blob -static
+
+
+Bygging
+-------
+Bygg med: ./makeall.sh
+
+Laget for x86_64 CentOS 8 / RHEL 8. Du må sannsynligvis justere scriptet
+for å bygge på andre distribusjoner. Statisk bygging krever pakken
+glibc-static (dnf install glibc-static).
+
+Flagg til makeall.sh:
+  --clean    Fjerner tidligere byggeartefakter (blob/, blob.tar.gz, cde)
+             før bygging starter.
+  --unpack   Pakker ut CDE.tar.gz før bygging. Trengs på et helt ferskt
+             checkout; kan hoppes over på gjentatte bygg der ./CDE
+             allerede finnes.
+  -h/--help  Vis hjelp.
+
+Scriptet bygger en statisk cde/cde-exec og okapi fra kildene i CDE/, lager
+en mellomlagringsmappe (blob/) med disse verktøyene + mkblobexec.o/
+mkblobexec_dae.o, pakker den som blob.tar.gz, og kompilerer til slutt den
+egentlige mkblob-kjørbare filen med dette arkivet bakt inn.
+
+
+Bruk
+----
+mkblob <full sti til kjørbar fil> -o <output-blob> [flagg...]
+
+Flagg:
+  -o <fil>     Navn på den ferdige bloben (påkrevd).
+  -f <fil>     Ta med en ekstra fil i pakken. Kan brukes flere ganger.
+  -d <mappe>   Ta med en hel mappe rekursivt i pakken. Kan brukes flere
+               ganger.
+  -static      Lag en statisk lenket sluttfil (for bruk på binær-
+               kompatibel arkitektur).
+  -dae         "Delete at exit" - slett filene i /tmp/<tilfeldig-mappe>
+               så snart programmet er ferdig, i stedet for å vente på at
+               den bakenforliggende dynamiske linkeren er ferdig. Bruk
+               dette hvis programmet ditt selv laster filer ved kjøretid
+               og du vil at opprydningen skal skje tidligere.
+  -p           Krev et passord ved kjøring av den ferdige bloben (se eget
+               avsnitt under).
+  -mac <adr>   Lås bloben til én bestemt maskin: den nekter å kjøre med
+               mindre maskinen har et nettverksgrensesnitt med denne
+               MAC-adressen (format aa:bb:cc:dd:ee:ff). Kun én adresse
+               per bygg - trenger du flere lisensierte maskiner, bygg én
+               blob per maskin.
+  -expire <dato>
+               Bloben nekter å kjøre etter denne datoen (format
+               YYYY-MM-DD, gyldig til og med hele den oppgitte dagen,
+               UTC).
+  -uuid <verdi>
+               Lås bloben til én bestemt maskin via maskin-UUID i stedet
+               for (eller i tillegg til) MAC-adresse. Hentes fra
+               målmaskinen med enten "cat /etc/machine-id" (krever ikke
+               root) eller "sudo cat /sys/class/dmi/id/product_uuid"
+               (krever root, men er bundet til maskinvaren, ikke
+               OS-installasjonen). Bindestreker i verdien er valgfrie.
+
+               Enklere måte å hente verdiene på: bygg og send
+               mkblobid.c til kunden (se eget avsnitt under).
+
+mkblob kan brukes på både binærfiler og skript (shell, perl, python osv).
+Hvis programmet trenger kommandolinje-argumenter du vil sende med hver
+gang, lag et lite wrapper-skript som gjør det, og kjør mkblob på skriptet.
+
+
+Beskyttelse (-p, -mac, -expire, -uuid)
+----------------------------------------
+Alle fire kan brukes hver for seg eller kombinert på samme bygg. Bruker
+du minst én av dem, blir programarkivet (blob.tar.gz) kryptert - ikke
+bare portvoktet av en sjekk du kan patche bort. Nøkkelen bygges opp av:
+
+  - passordet ditt hvis -p er brukt (ellers en tom streng), saltet og
+    kjørt gjennom 200 000 runder SHA-256 (se sha256.h, derive_key()),
+  - blandet videre med utløpsdatoen hvis -expire er brukt,
+  - MAC-adressen hvis -mac er brukt,
+  - og maskin-UUID-en hvis -uuid er brukt (se sha256.h, mix_key()).
+
+Uten alt som kreves (riktig passord OG riktig maskin OG innenfor
+datofristen) kan ikke riktig nøkkel gjenskapes, og det krypterte
+arkivet er ubrukelig søppel - det finnes ingen "snarvei" for å hente ut
+det opprinnelige programmet uten å faktisk oppfylle betingelsene.
+
+-p: Med -p ber mkblob deg skrive inn et passord (skjult, ekko av) når du
+    lager bloben. Passordet må skrives to ganger og må være minst 4
+    tegn. Ved kjøring blir du bedt om passordet (skjult inntasting).
+    Feil passord kan forsøkes 3 ganger før bloben nekter å kjøre videre
+    og rydder opp etter seg selv.
+
+-mac: Sjekkes automatisk ved kjøring (ingen ekstra inntasting) - bloben
+    prøver denne maskinens virkelige nettverksgrensesnitt-adresser
+    (fra /sys/class/net/*/address) mot det som ble bakt inn ved
+    bygging. Er MAC-restriksjonen aktiv og ingen lokal adresse
+    stemmer, kjører den rett og slett ikke.
+
+-expire: Sjekkes FØR noe annet, rett ved oppstart, mot systemklokken.
+    Har fristen passert, avslutter bloben umiddelbart med en tydelig
+    melding - uten å be om passord først.
+
+-uuid: Sjekkes automatisk ved kjøring, akkurat som -mac, og kan
+    kombineres med -mac (da må begge stemme). Bloben prøver først
+    maskinens /sys/class/dmi/id/product_uuid (maskinvare-UUID); er den
+    ikke lesbar (vanlig for en ikke-root-bruker - filen er root-only på
+    de fleste systemer), faller den automatisk tilbake til
+    /etc/machine-id (OS-installasjons-UUID, lesbar av alle) uten å
+    krasje eller kreve root. Dette er bevisst gjort robust på tvers av
+    alle slags systemer/rettigheter, nettopp for at bloben skal fungere
+    som et universelt verktøy uansett hvem som kjører den - se
+    "Kjente begrensninger" for flere detaljer om hvilke miljøer dette
+    er testet mot.
+
+Sluttfilen blir uansett automatisk strippet for symboler, og enkelte
+sikkerhetsrelevante tekststrenger er obfuskert i den kompilerte filen,
+for å gjøre en rask titt med "strings" eller et disassembly-verktøy
+(f.eks. IDA) mindre nyttig.
+
+VIKTIG - vær ærlig med deg selv om hva disse faktisk beskytter mot, og
+merk at de IKKE er like sterke:
+
+  -mac og -uuid er begge reelt kryptografisk bundet: uten riktig verdi
+  er det fysisk umulig å regne ut riktig nøkkel, det finnes ingen
+  "if"-sjekk å patche bort. Svakheten ligger et annet sted for hver av
+  dem:
+
+    * MAC-adresse er ikke hemmelig (synlig for alle på samme nettverk)
+      og kan endres av hvem som helst med root-tilgang
+      (ip link set address ...).
+    * /sys/class/dmi/id/product_uuid er brent inn i maskinvaren og
+      dermed reelt vanskeligere å forfalske på FYSISKE maskiner - men
+      på en virtuell maskin (skyserver/VPS) bestemmer den som styrer
+      VM-konfigurasjonen denne verdien fritt, og klonede VM-images kan
+      til og med dele samme UUID ved en feil. /etc/machine-id (fall-
+      back-en) er omtrent like lett å endre som en MAC-adresse.
+
+  Ingen av dem stopper altså en angriper som kjenner målverdien og er
+  villig til å endre sin egen maskin/VM til å matche den - de stopper
+  tilfeldig/uforvarende bruk på feil maskin.
+
+  -expire er fundamentalt annerledes: "nå" endrer seg for hver kjøring,
+  så det kan bare håndheves ved å sammenligne mot systemklokken der og
+  da. Den sjekken kan patches bort, og selve klokken kan stilles
+  tilbake. Dette er en universell begrensning ved all frakoblet
+  (offline) tidsbegrensning - ikke noe spesifikt for denne
+  implementasjonen - og kan ikke gjøres sterkere uten en ekstern
+  lisensserver å bekrefte mot, som mkblob bevisst ikke har.
+
+  -p (passord) er en solid sperre mot vanlig bruk, uvedkommende som
+  prøver filen, og rask statisk inspeksjon. Det er IKKE ekte,
+  uknekkelig kopisikring (DRM). En teknisk kompetent person med nok
+  tid, en debugger og vilje til å analysere binærfilen kan i
+  prinsippet fortsatt komme forbi den. Styrken mot rått
+  passord-gjetting (brute force) avhenger i stor grad av HVOR GODT
+  passordet du velger er - bruk en ordentlig lang passfrase, ikke et
+  kort eller gjettbart ord.
+
+  Generelt: dette er lokal, frakoblet beskyttelse uten noen ekstern
+  server å bekrefte mot. Alt av dette er en heving av terskelen, ikke
+  en garanti.
+
+  Vi vurderte også eksterne "packere" (som Kiteshield) for enda et lag
+  beskyttelse, men forkastet det: slike verktøy bruker selv ptrace() for
+  å beskytte seg, og det kolliderer direkte med at cde-exec (som kjører
+  det innpakkede programmet) allerede bruker ptrace() på akkurat den
+  samme prosessen ved hver kjøring. Linux tillater bare én "tracer" per
+  prosess om gangen, så kombinasjonen ville sannsynligvis bare ødelagt
+  kjøringen i stedet for å beskytte noe.
+
+
+Hente MAC/UUID fra kundens maskin (mkblobid.c)
+------------------------------------------------
+mkblobid.c er et lite, frittstående program (ikke en del av mkblob/
+mkblobexec-pipelinen) som skriver ut nettopp de verdiene -mac og -uuid
+forventer, klare til å kopieres inn i mkblob-kommandoen din:
+
+  gcc -O2 -o mkblobid mkblobid.c -static
+
+Send den ferdige (gjerne statisk lenkede) mkblobid-filen til kunden,
+be dem kjøre den, og send resultatet tilbake til deg. Den:
+  - lister alle nettverksgrensesnitts MAC-adresser (hopper over lo),
+  - viser maskinvare-UUID (/sys/class/dmi/id/product_uuid) hvis
+    kjørt som root, ellers en tydelig beskjed om at det krever root,
+  - viser alltid OS-installasjons-UUID (/etc/machine-id, krever ikke
+    root),
+  - og skriver ut et ferdig eksempel på selve mkblob-kommandoen med
+    disse verdiene fylt inn.
+
+
+Filoversikt
+-----------
+mkblob.c
+    Selve bygge-verktøyet. Tar imot argumentene dine, sporer det oppgitte
+    programmet med cde, samler filene i en midlertidig mappe, krypterer
+    payload hvis -p er brukt, og kompilerer den ferdige, selvstendige
+    kjørbare filen.
+
+mkblobexec.c
+    Kompileres inn i HVER blob mkblob produserer. Ved kjøring pakker den
+    ut det innebygde arkivet til /tmp, spør om passord hvis bloben er
+    beskyttet, kjører selve programmet via cde-exec, og rydder opp
+    etterpå (i en egen bakgrunnstråd, siden det innpakkede programmet kan
+    finne på å kjøre videre i bakgrunnen/daemonisere seg selv).
+
+sha256.h
+    Selvstendig (header-only) implementasjon av SHA-256, samt hjelpe-
+    funksjoner for saltet/iterert nøkkelutledning (derive_key), å blande
+    inn MAC-adresse/utløpsdato/maskin-UUID i nøkkelen (mix_key), og en
+    enkel strømchiffer bygget på samme hash (keystream_xor) - brukt av
+    -p/-mac/-expire/-uuid. Ingen eksterne kryptobiblioteker er nødvendig.
+
+mkblobid.c
+    Frittstående hjelpeverktøy for å hente MAC-adresse(r) og UUID fra en
+    kundes maskin, til bruk med -mac/-uuid. Se eget avsnitt over.
+
+blobgz.S
+    Assembly-fil som via ".incbin" bygger inn en tar.gz-fil direkte i en
+    kjørbar fil som symbolene blob_tar/size_tar. Brukes både når mkblob
+    selv bygges (bygger inn verktøyene i blob/) og av mkblob selv når den
+    genererer den ferdige bloben (bygger inn programarkivet ditt).
+
+makeall.sh
+    Bygger cde/cde-exec (fra CDE/strace-4.6) og okapi statisk fra kilde,
+    setter sammen mellomlageret i blob/, og kompilerer til slutt selve
+    mkblob-verktøyet. Se "Bygging" over for flagg.
+
+makeclean.sh
+    Fjerner alle byggeartefakter (CDE/, blob/, blob.tar.gz, cde, mkblob,
+    mkblobid, okapi, dist/) for en helt ren mappe.
+
+mkblob.spec
+    RPM-spec. Pakker de ferdigbygde mkblob/mkblobid-filene (bygger ikke
+    fra kildekode selv) - se "Pakking" over.
+
+build-packages.sh
+    Bygger .rpm (via rpmbuild) og/eller .deb (direkte med dpkg-deb, uten
+    alien) fra de allerede kompilerte mkblob/mkblobid-filene. Se
+    "Pakking" over.
+
+CDE/
+    Kildekoden til CDE (Code, Data and Environment), en modifisert
+    strace-4.6, som mkblob bruker til å spore og fange opp
+    filavhengigheter til programmet som pakkes inn. Denne koden er
+    tilpasset spesielt for dette prosjektet - blant annet er en gammel
+    feil rettet der ukjente/uhåndterte systemkall på moderne kjerner
+    kunne lekke rå informasjon til programmets egen output i stedet for
+    å bli stille ignorert (se CDE/strace-4.6/syscall.c).
+
+templates/
+    Grunnfiler som kopieres inn i hver cde-pakke under bygging (bl.a.
+    gcc.cde, cc1, as, ld, collect2, cde.options) - en "fake" verktøykjede
+    som mkblob bruker til å kompilere den ferdige bloben helt selvstendig
+    av det systemet den kjører på.
+
+
+Pakking (.rpm / .deb)
+----------------------
+1. Bygg først: ./makeall.sh (lager mkblob og mkblobid).
+2. Pakk: ./build-packages.sh [--rpm] [--deb] [--all]  (--all er default)
+
+Skriver mkblob-<versjon>.<arch>.rpm og mkblob_<versjon>_amd64.deb til
+./dist/. Begge pakker kun de to ferdigbygde binærfilene + readme.txt
+(den engelske oversettelsen av denne fila - se under)/README.md/LICENSE
+som dokumentasjon - selve mkblob/mkblobexec-bygget (makeall.sh) kjøres
+ALDRI som en del av pakkingen.
+
+.rpm bygges med rpmbuild fra mkblob.spec (krever rpm-build).
+.deb bygges direkte med dpkg-deb - ingen alien, ingen debhelper/build-
+essential nødvendig, fungerer fint på Fedora eller Debian-baserte
+systemer. Vil du heller ha et fullstendig debian/-kildepakkeoppsett
+(for å laste opp til et ekte Debian/Ubuntu-repo), er ikke det satt opp
+her per nå, men er en grei utvidelse av build-packages.sh om du trenger
+det senere.
+
+Andre pakkeformater (Arch-pakker/PKGBUILD, Alpine/APK, Flatpak/Snap/
+AppImage) er ikke satt opp. Siden mkblob allerede er én selvstendig,
+statisk lenket fil uten avhengigheter, gir universelle "bunt alt selv"-
+formater som Flatpak/Snap/AppImage lite ekstra verdi her - de er laget
+for programmer med mange kjøretidsavhengigheter, ikke enkeltbinærfiler.
+rpm og deb dekker de aller fleste Linux-brukere.
+
+
+Kjente begrensninger
+--------------------
+- Kun testet/laget for x86_64 Linux.
+- Bygging forutsetter et miljø nokså likt CentOS 8/RHEL 8 (bl.a. faste
+  stier til gcc sine interne verktøy cc1/collect2). Andre distribusjoner
+  og nyere gcc-versjoner kan kreve justeringer i makeall.sh.
+- Beskyttelsesflaggene (-p, -mac, -expire, -uuid) er hindre, ikke
+  garantier - se eget avsnitt over for hvor sterk hver av dem faktisk er.
+- -mac/-uuid støtter kun én adresse/UUID per bygg, ikke en liste over
+  flere tillatte maskiner.
+- -uuid faller trygt tilbake fra product_uuid (root-only) til
+  machine-id (lesbar av alle) slik at det fungerer uansett hvilken
+  bruker som kjører bloben - men på systemer uten noen av delene (svært
+  minimale/eldre oppsett, eller containere der verken /sys/class/dmi
+  eller /etc/machine-id er tilgjengelig) har -uuid ingen lokal verdi å
+  matche mot, og bloben vil da alltid nekte å kjøre der.
+- cde/cde-exec bruker ptrace() aktivt ved hver kjøring av en innpakket
+  blob. Dette er inkompatibelt med andre verktøy som selv vil ha
+  eksklusiv ptrace-tilgang til samme prosess (f.eks. egne debuggere eller
+  packere som Kiteshield).
+
+
+Lisens
+------
+GPLv3.
+
+Sigurd Dagestad, 2020-2026 (sigurd@dagestad.info)

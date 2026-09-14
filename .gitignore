@@ -51,3 +51,25 @@ Module.symvers
 Mkfile.old
 dkms.conf
 
+# Packaging output (build-packages.sh)
+/dist/
+
+# Built binaries produced by makeall.sh -- shipped via GitHub Releases,
+# not committed to git. Source + blob.tar.gz/CDE.tar.gz are what's tracked.
+/mkblob
+/mkblobid
+/cde
+/okapi
+
+# Unpacked CDE source tree (regenerated from CDE.tar.gz by `makeall.sh --unpack`)
+/CDE/
+
+# Regenerated blob staging area (rebuilt fresh on every makeall.sh run)
+/blob/
+
+# One-off GitHub publishing helper (not part of the project)
+/release-to-github.sh
+
+# Editor / IDE settings
+/.vscode/
+
